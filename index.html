@@ -1,24 +1,173 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8">
+    <title>VR Earth - Interactive 3D Globe</title>
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            z-index: 1000;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
 </head>
 <body>
-    <a-scene>
-        <!-- 创建一个球体作为地球 -->
-        <a-sphere id="earth" radius="1.5" color="blue" position="0 1.5 -5">
-            <!-- 为地球添加自转动画 -->
-            <a-animation attribute="rotation"
-                        dur="10000"
-                        fill="forwards"
-                        to="0 360 0"
-                        repeat="indefinite">
-            </a-animation>
-        </a-sphere>
-        <!-- 添加一个静态平面作为地面 -->
-        <a-plane position="0 0 -4" rotation="-90 0 0" width="4" height="4" color="#7BC8A4"></a-plane>
-        <!-- 设置相机 -->
-        <a-camera position="0 1.6 0"></a-camera>
+    <div id="info">
+        <h3>VR Earth</h3>
+        <p>• 拖动鼠标旋转地球</p>
+        <p>• 滚轮缩放视图</p>
+        <p>• 移动鼠标改变视角</p>
+    </div>
+
+    <a-scene 
+        embedded 
+        cursor="rayOrigin: mouse" 
+        raycaster="objects: .clickable"
+        renderer="antialias: true">
+        
+        <!-- 真实地球纹理 -->
+        <a-assets>
+            <img id="earthTexture" src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets/earth_atmos_2048.jpg">
+            <img id="earthBump" src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets/earth_normal_2048.jpg">
+            <img id="earthSpec" src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets/earth_specular_2048.jpg">
+            <img id="stars" src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets/starry_sky.jpg">
+        </a-assets>
+
+        <!-- 星空背景 -->
+        <a-sky src="#stars" radius="100"></a-sky>
+
+        <!-- 可交互的地球 -->
+        <a-entity id="earth" class="clickable">
+            <a-sphere 
+                id="globe"
+                radius="1.5"
+                position="0 1.5 -4"
+                src="#earthTexture"
+                roughness-map="#earthBump"
+                repeat="1 1"
+                class="clickable">
+                
+                <!-- 自转动画 -->
+                <a-animation 
+                    attribute="rotation"
+                    dur="40000"
+                    fill="forwards"
+                    to="0 360 0"
+                    repeat="indefinite"
+                    easing="linear">
+                </a-animation>
+            </a-sphere>
+        </a-entity>
+
+        <!-- 相机控制器（实现拖动和缩放） -->
+        <a-entity id="rig" position="0 1.6 0">
+            <a-entity 
+                id="camera" 
+                camera="fov: 80" 
+                look-controls="pointerLockEnabled: false"
+                wasd-controls="enabled: false"
+                position="0 0 0">
+            </a-entity>
+        </a-entity>
+
+        <!-- 环境光 -->
+        <a-light type="ambient" color="#444"></a-light>
+        <a-light type="directional" color="#fff" intensity="0.8" position="2 4 2"></a-light>
     </a-scene>
+
+    <script>
+        // 添加鼠标控制交互
+        AFRAME.registerComponent('earth-controls', {
+            init: function() {
+                this.earth = document.getElementById('earth');
+                this.camera = document.getElementById('camera');
+                this.rig = document.getElementById('rig');
+                this.isRotating = false;
+                this.previousMousePosition = { x: 0, y: 0 };
+                
+                // 鼠标按下事件
+                this.onMouseDown = (event) => {
+                    this.isRotating = true;
+                    this.previousMousePosition = {
+                        x: event.clientX,
+                        y: event.clientY
+                    };
+                };
+
+                // 鼠标移动事件
+                this.onMouseMove = (event) => {
+                    if (!this.isRotating) return;
+                    
+                    const deltaMove = {
+                        x: event.clientX - this.previousMousePosition.x,
+                        y: event.clientY - this.previousMousePosition.y
+                    };
+
+                    // 旋转地球
+                    const currentRotation = this.earth.getAttribute('rotation');
+                    this.earth.setAttribute('rotation', {
+                        x: currentRotation.x - deltaMove.y * 0.5,
+                        y: currentRotation.y - deltaMove.x * 0.5,
+                        z: currentRotation.z
+                    });
+
+                    this.previousMousePosition = {
+                        x: event.clientX,
+                        y: event.clientY
+                    };
+                };
+
+                // 鼠标释放事件
+                this.onMouseUp = () => {
+                    this.isRotating = false;
+                };
+
+                // 鼠标滚轮缩放
+                this.onWheel = (event) => {
+                    event.preventDefault();
+                    const currentPosition = this.rig.getAttribute('position');
+                    const zoomIntensity = 0.1;
+                    const newZ = currentPosition.z + (event.deltaY > 0 ? zoomIntensity : -zoomIntensity);
+                    
+                    // 限制缩放范围
+                    if (newZ > -2 && newZ < 10) {
+                        this.rig.setAttribute('position', {
+                            x: currentPosition.x,
+                            y: currentPosition.y,
+                            z: newZ
+                        });
+                    }
+                };
+
+                // 添加事件监听器
+                this.el.addEventListener('mousedown', this.onMouseDown);
+                document.addEventListener('mousemove', this.onMouseMove);
+                document.addEventListener('mouseup', this.onMouseUp);
+                this.el.addEventListener('wheel', this.onWheel);
+            },
+
+            remove: function() {
+                // 清理事件监听器
+                this.el.removeEventListener('mousedown', this.onMouseDown);
+                document.removeEventListener('mousemove', this.onMouseMove);
+                document.removeEventListener('mouseup', this.onMouseUp);
+                this.el.removeEventListener('wheel', this.onWheel);
+            }
+        });
+
+        // 将控制器添加到场景
+        document.querySelector('a-scene').setAttribute('earth-controls', '');
+    </script>
 </body>
 </html>
