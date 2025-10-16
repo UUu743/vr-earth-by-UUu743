@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+</head>
+<body>
+    <a-scene>
+        <!-- 创建一个球体作为地球 -->
+        <a-sphere id="earth" radius="1.5" color="blue" position="0 1.5 -5">
+            <!-- 为地球添加自转动画 -->
+            <a-animation attribute="rotation"
+                        dur="10000"
+                        fill="forwards"
+                        to="0 360 0"
+                        repeat="indefinite">
+            </a-animation>
+        </a-sphere>
+        <!-- 添加一个静态平面作为地面 -->
+        <a-plane position="0 0 -4" rotation="-90 0 0" width="4" height="4" color="#7BC8A4"></a-plane>
+        <!-- 设置相机 -->
+        <a-camera position="0 1.6 0"></a-camera>
+    </a-scene>
+</body>
+</html>
